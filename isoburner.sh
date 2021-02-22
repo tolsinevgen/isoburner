@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 
 . shell-error
 . shell-quote
@@ -92,7 +92,14 @@ if ! is_usb "$STORAGE_DEVICE"; then
 	fatal "'$STORAGE_DEVICE' is not usb storage device (block device subsystem is not 'block:scsi:usb:pci')."
 fi
 
-umount_all_partions "$STORAGE_DEVICE"
+install_grub()
+{
+	umount_all_partions "$STORAGE_DEVICE"
+	echo -e "o\nn\np\n1\n\n+256M\nt\nb\nw\n" | fdisk -W always "$STORAGE_DEVICE"
+	mkfs.fat "${STORAGE_DEVICE}1"
+}
+
+install_grub
 
 for iso in "$@"; do
 	echo -n "file: '$iso' "
