@@ -92,11 +92,46 @@ if ! is_usb "$STORAGE_DEVICE"; then
 	fatal "'$STORAGE_DEVICE' is not usb storage device (block device subsystem is not 'block:scsi:usb:pci')."
 fi
 
+tmpdir=
+mntdir=
+cleanup_handler()
+{
+	trap - EXIT
+	if mountpoint -q "$mntdir"; then
+		umount -A "$mntdir"
+	fi
+	if [ -n "$tmpdir" ]; then
+		rm -rf -- "$tmpdir"
+	fi
+	exit "$@"
+}
+
+exit_handler()
+{
+	cleanup_handler $?
+}
+
+signal_handler()
+{
+	cleanup_handler 1
+}
+
+trap exit_handler EXIT
+trap signal_handler HUP PIPE INT QUIT TERM
+
+tmpdir="$(mktemp -dt "$PROG.XXXXXXXX")"
+mntdir="$tmpdir/mnt"
+mkdir "$mntdir"
+
+BOOTPART="${STORAGE_DEVICE}1"
+
 install_grub()
 {
 	umount_all_partions "$STORAGE_DEVICE"
 	echo -e "o\nn\np\n1\n\n+256M\nt\nb\nw\n" | fdisk -W always "$STORAGE_DEVICE"
-	mkfs.fat "${STORAGE_DEVICE}1"
+	mkfs.fat "$BOOTPART"
+	mount "$BOOTPART" "$mntdir"
+	grub-install --boot-directory="$mntdir" "$STORAGE_DEVICE"
 }
 
 install_grub
