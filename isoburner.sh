@@ -72,6 +72,18 @@ is_usb() {
 	return 1
 }
 
+umount_all_partions()
+{
+	local dev mnt
+	lsblk -o PATH,MOUNTPOINT -P "$1" | while read d m; do
+		dev=$(echo "$d" | sed 's/PATH="\(.*\)"/\1/')
+		mnt=$(echo "$m" | sed 's/MOUNTPOINT="\(.*\)"/\1/')
+		if test -n "$mnt" && mountpoint -q "$mnt"; then
+			umount -A "$dev"
+		fi
+	done
+}
+
 if ! is_disk "$STORAGE_DEVICE"; then
 	fatal "'$STORAGE_DEVICE' is not storage device (block device disk)."
 fi
@@ -79,6 +91,8 @@ fi
 if ! is_usb "$STORAGE_DEVICE"; then
 	fatal "'$STORAGE_DEVICE' is not usb storage device (block device subsystem is not 'block:scsi:usb:pci')."
 fi
+
+umount_all_partions "$STORAGE_DEVICE"
 
 for iso in "$@"; do
 	echo -n "file: '$iso' "
